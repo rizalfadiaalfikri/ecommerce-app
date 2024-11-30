@@ -2,6 +2,8 @@ package id.orbion.ecommerce_app.service.impl;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import id.orbion.ecommerce_app.common.error.BadRequestException;
@@ -176,6 +178,47 @@ public class ProductServiceImpl implements ProductService {
                                 return new ResourceNotFoundException("Category not found for id " + categoryId);
                             });
                 }).toList();
+    }
+
+    @Override
+    public Page<ProductResponse> findByPage(Pageable pageable) {
+        return productRepository.findByPageable(pageable).map(product -> {
+            List<ProductCategory> productCategories = productCategoryRepository
+                    .findCategoriesByProductId(product.getProductId());
+            List<CategoryResponse> categoryResponsesList = productCategories.stream()
+                    .map(productCategory -> {
+                        Category category = categoryRepository.findById(productCategory.getId().getCategoryId())
+                                .orElseThrow(() -> {
+                                    return new ResourceNotFoundException(
+                                            "Category not found for id "
+                                                    + productCategory.getId().getCategoryId());
+                                });
+                        return CategoryResponse.fromCategory(category);
+                    }).toList();
+
+            return ProductResponse.fromProductCategories(product, categoryResponsesList);
+        });
+    }
+
+    @Override
+    public Page<ProductResponse> findByNamePage(String name, Pageable pageable) {
+        name = "%" + name + "%";
+        return productRepository.findByNamePageable(name, pageable).map(product -> {
+            List<ProductCategory> productCategories = productCategoryRepository
+                    .findCategoriesByProductId(product.getProductId());
+            List<CategoryResponse> categoryResponsesList = productCategories.stream()
+                    .map(productCategory -> {
+                        Category category = categoryRepository.findById(productCategory.getId().getCategoryId())
+                                .orElseThrow(() -> {
+                                    return new ResourceNotFoundException(
+                                            "Category not found for id "
+                                                    + productCategory.getId().getCategoryId());
+                                });
+                        return CategoryResponse.fromCategory(category);
+                    }).toList();
+
+            return ProductResponse.fromProductCategories(product, categoryResponsesList);
+        });
     }
 
 }
