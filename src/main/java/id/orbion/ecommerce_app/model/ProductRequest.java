@@ -4,7 +4,9 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import jakarta.validation.constraints.Digits;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
@@ -32,9 +34,14 @@ public class ProductRequest {
     @Size(min = 3, max = 1000, message = "Description Product must be between 3 and 1000 characters")
     private String description;
 
+    @NotNull(message = "Stok tidak boleh kosong")
+    @Min(value = 0, message = "Stok tidak boleh kurang atau sama dengan 0")
     private Integer stockQuantity;
 
+    @NotNull(message = "Berat tidak boleh kosong")
+    @Min(value = 100, message = "Berat tidak boleh kurang dari 1000 gram")
     private BigDecimal weight;
 
+    @NotEmpty(message = "Harus ada kategory yang dipilih")
     private List<Long> categorieIds;
 }

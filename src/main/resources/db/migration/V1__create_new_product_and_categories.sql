@@ -1,6 +1,6 @@
 -- Create Product table
 CREATE TABLE product(
-    product_id BIGINT PRIMARY KEY,
+    product_id BIGINT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(255) NOT NULL,
     description TEXT,
     price DECIMAL(10, 2) NOT NULL,
@@ -12,7 +12,7 @@ CREATE TABLE product(
 
 -- Create Category table
 CREATE TABLE category(
-    category_id BIGINT PRIMARY KEY,
+    category_id BIGINT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(255) NOT NULL,
     description TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
