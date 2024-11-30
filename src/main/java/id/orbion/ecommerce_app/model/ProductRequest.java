@@ -1,5 +1,8 @@
 package id.orbion.ecommerce_app.model;
 
+import java.math.BigDecimal;
+import java.util.List;
+
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -23,10 +26,15 @@ public class ProductRequest {
     @NotNull(message = "Price Product cannot be null")
     @Positive(message = "Price Product must be positive value")
     @Digits(integer = 10, fraction = 2, message = "Price Product must be a valid decimal value")
-    private Long price;
+    private BigDecimal price;
 
     @NotNull(message = "Description Product cannot be null")
     @Size(min = 3, max = 1000, message = "Description Product must be between 3 and 1000 characters")
     private String description;
 
+    private Integer stockQuantity;
+
+    private BigDecimal weight;
+
+    private List<Long> categorieIds;
 }
