@@ -3,6 +3,7 @@ package id.orbion.ecommerce_app.model;
 import java.math.BigDecimal;
 import java.util.List;
 
+import id.orbion.ecommerce_app.entity.User;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -44,4 +45,6 @@ public class ProductRequest {
 
     @NotEmpty(message = "Harus ada kategory yang dipilih")
     private List<Long> categorieIds;
+
+    private User user;
 }

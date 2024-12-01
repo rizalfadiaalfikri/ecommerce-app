@@ -9,6 +9,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,6 +26,7 @@ import id.orbion.ecommerce_app.model.PaginatedResponse;
 import id.orbion.ecommerce_app.model.PaginationDetails;
 import id.orbion.ecommerce_app.model.ProductRequest;
 import id.orbion.ecommerce_app.model.ProductResponse;
+import id.orbion.ecommerce_app.model.UserInfo;
 import id.orbion.ecommerce_app.service.ProductService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
@@ -101,6 +104,9 @@ public class ProductController {
 
         @PostMapping
         public ResponseEntity<ApiResponse> createProduct(@Valid @RequestBody ProductRequest productRequest) {
+                Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+                UserInfo userInfo = (UserInfo) authentication.getPrincipal();
+                productRequest.setUser(userInfo.getUser());
                 ProductResponse productResponse = productService.create(productRequest);
                 return ResponseEntity.created(URI.create("")).body(
                                 ApiResponse.builder()
