@@ -24,3 +24,8 @@ spring:
     user: root
     password:
     locations: classpath:db/migration
+
+app:
+  jwt:
+    secret: c7a18d7dc1a0deecd84d61a69ba1bfd43dd1571f066b09d35fa6e90014c8c19b
+    expiration: 1h

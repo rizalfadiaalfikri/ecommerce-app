@@ -4,6 +4,11 @@ import java.util.Map;
 import java.util.HashMap;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AccountStatusException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.InsufficientAuthenticationException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -21,7 +26,10 @@ import id.orbion.ecommerce_app.common.error.RoleNotFoundException;
 import id.orbion.ecommerce_app.common.error.UserNotFoundException;
 import id.orbion.ecommerce_app.common.error.UsernameAlreadyExistsException;
 import id.orbion.ecommerce_app.model.ErrorResponse;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.security.SignatureException;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 
 @ControllerAdvice
@@ -55,8 +63,24 @@ public class GenericExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public @ResponseBody ErrorResponse handleInternalServerErrorResponse(HttpServletRequest request, Exception e) {
+    public @ResponseBody ErrorResponse handleInternalServerErrorResponse(HttpServletRequest request, Exception e,
+            HttpServletResponse response) {
         log.error("Internal Server Error", e);
+        if (e instanceof BadCredentialsException
+                || e instanceof AccountStatusException
+                || e instanceof AccessDeniedException
+                || e instanceof SignatureException
+                || e instanceof ExpiredJwtException
+                || e instanceof AuthenticationException
+                || e instanceof InsufficientAuthenticationException) {
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            return ErrorResponse.builder()
+                    .code(HttpStatus.FORBIDDEN.value())
+                    .message(e.getMessage())
+                    .timestamp(LocalDateTime.now())
+                    .build();
+        }
+        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         return ErrorResponse.builder()
                 .code(HttpStatus.INTERNAL_SERVER_ERROR.value())
                 .message(e.getMessage())
