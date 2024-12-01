@@ -14,7 +14,12 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import java.time.LocalDateTime;
 
 import id.orbion.ecommerce_app.common.error.BadRequestException;
+import id.orbion.ecommerce_app.common.error.EmailAlreadyExistsException;
+import id.orbion.ecommerce_app.common.error.InvalidPasswordException;
 import id.orbion.ecommerce_app.common.error.ResourceNotFoundException;
+import id.orbion.ecommerce_app.common.error.RoleNotFoundException;
+import id.orbion.ecommerce_app.common.error.UserNotFoundException;
+import id.orbion.ecommerce_app.common.error.UsernameAlreadyExistsException;
 import id.orbion.ecommerce_app.model.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +28,11 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class GenericExceptionHandler {
 
-    @ExceptionHandler(ResourceNotFoundException.class)
+    @ExceptionHandler({
+            ResourceNotFoundException.class,
+            UserNotFoundException.class,
+            RoleNotFoundException.class
+    })
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public @ResponseBody ErrorResponse handleResourcErrorResponse(HttpServletRequest request,
             ResourceNotFoundException e) {
@@ -71,6 +80,29 @@ public class GenericExceptionHandler {
         return ErrorResponse.builder()
                 .code(HttpStatus.BAD_REQUEST.value())
                 .message(errorMessages)
+                .timestamp(LocalDateTime.now())
+                .build();
+    }
+
+    @ExceptionHandler(InvalidPasswordException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public @ResponseBody ErrorResponse handleUnauthorizeException(HttpServletRequest request, Exception e) {
+        return ErrorResponse.builder()
+                .code(HttpStatus.UNAUTHORIZED.value())
+                .message(e.getMessage())
+                .timestamp(LocalDateTime.now())
+                .build();
+    }
+
+    @ExceptionHandler({
+            UsernameAlreadyExistsException.class,
+            EmailAlreadyExistsException.class
+    })
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public @ResponseBody ErrorResponse handleConflictException(HttpServletRequest request, Exception e) {
+        return ErrorResponse.builder()
+                .code(HttpStatus.CONFLICT.value())
+                .message(e.getMessage())
                 .timestamp(LocalDateTime.now())
                 .build();
     }
