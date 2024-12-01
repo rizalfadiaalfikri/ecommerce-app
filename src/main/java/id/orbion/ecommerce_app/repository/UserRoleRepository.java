@@ -7,5 +7,5 @@ import id.orbion.ecommerce_app.entity.UserRole;
 
 @Repository
 public interface UserRoleRepository extends JpaRepository<UserRole, UserRole.UserRoleId> {
-    void deleteByUserId(Long userId);
+    void deleteByIdUserId(Long userId);
 }
