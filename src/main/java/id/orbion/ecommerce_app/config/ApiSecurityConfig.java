@@ -16,6 +16,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import id.orbion.ecommerce_app.config.middleware.JwtAuthenticationFilter;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.AllArgsConstructor;
 
 @Configuration
@@ -31,7 +32,13 @@ public class ApiSecurityConfig {
         return http.csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(
                         auth -> {
-                            auth.requestMatchers("/auth/**", "/api-docs/**", "/swagger-ui/**").permitAll();
+                            auth.requestMatchers(
+                                    "/auth/**",
+                                    "/v3/api-docs/**",
+                                    "/swagger-ui/**",
+                                    "/v2/api-docs/**",
+                                    "/swagger-resources/**",
+                                    "/actuator/**").permitAll();
                             auth.anyRequest().authenticated();
                         })
                 .sessionManagement(configurer -> {
@@ -41,7 +48,7 @@ public class ApiSecurityConfig {
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(
                         exception -> exception.authenticationEntryPoint((request, response, authException) -> {
-                            throw authException;
+                            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, authException.getMessage());
                         }))
                 .build();
     }
@@ -49,7 +56,7 @@ public class ApiSecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfiguration() {
         CorsConfiguration corsConfiguration = new CorsConfiguration();
-        corsConfiguration.setAllowedOrigins(List.of("*"));
+        corsConfiguration.setAllowedOrigins(List.of("https://example.com")); // Batasi domain
         corsConfiguration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         corsConfiguration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         corsConfiguration.setAllowCredentials(true);

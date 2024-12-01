@@ -23,7 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 public class JwtServiceImpl implements JwtService {
 
     private final JwtSecretConfig jwtSecretConfig;
-    private SecretKey signinKey;
+    private final SecretKey signinKey;
 
     @Override
     public String generateToken(UserInfo userInfo) {

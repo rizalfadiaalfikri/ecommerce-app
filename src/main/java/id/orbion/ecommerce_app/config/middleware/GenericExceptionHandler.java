@@ -20,6 +20,7 @@ import java.time.LocalDateTime;
 
 import id.orbion.ecommerce_app.common.error.BadRequestException;
 import id.orbion.ecommerce_app.common.error.EmailAlreadyExistsException;
+import id.orbion.ecommerce_app.common.error.ForbiddenAccessException;
 import id.orbion.ecommerce_app.common.error.InvalidPasswordException;
 import id.orbion.ecommerce_app.common.error.ResourceNotFoundException;
 import id.orbion.ecommerce_app.common.error.RoleNotFoundException;
@@ -126,6 +127,16 @@ public class GenericExceptionHandler {
     public @ResponseBody ErrorResponse handleConflictException(HttpServletRequest request, Exception e) {
         return ErrorResponse.builder()
                 .code(HttpStatus.CONFLICT.value())
+                .message(e.getMessage())
+                .timestamp(LocalDateTime.now())
+                .build();
+    }
+
+    @ExceptionHandler(ForbiddenAccessException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public @ResponseBody ErrorResponse handleForbiddenAccessException(HttpServletRequest request, Exception e) {
+        return ErrorResponse.builder()
+                .code(HttpStatus.FORBIDDEN.value())
                 .message(e.getMessage())
                 .timestamp(LocalDateTime.now())
                 .build();
