@@ -1,6 +1,7 @@
 package id.orbion.ecommerce_app.entity;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -43,9 +44,9 @@ public class CartItem {
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)
-    private Long createdAt;
+    private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
     @UpdateTimestamp
-    private Long updatedAt;
+    private LocalDateTime updatedAt;
 }
