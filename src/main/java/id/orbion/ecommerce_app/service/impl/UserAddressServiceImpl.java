@@ -100,8 +100,20 @@ public class UserAddressServiceImpl implements UserAddressService {
 
     @Override
     public void delete(Long addressId) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'delete'");
+        UserAddress existingAddress = userAddressRepository.findById(addressId)
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("No user address found for id " + addressId));
+
+        userAddressRepository.delete(existingAddress);
+
+        if (existingAddress.getIsDefault()) {
+            List<UserAddress> remainingAddresses = userAddressRepository.findByUserId(existingAddress.getUserId());
+            if (remainingAddresses.size() > 0) {
+                UserAddress newDefaultAddress = remainingAddresses.get(0);
+                newDefaultAddress.setIsDefault(true);
+                userAddressRepository.save(newDefaultAddress);
+            }
+        }
     }
 
     @Override
