@@ -164,8 +164,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public Double calculateOrderTotal(Long orderId) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'calculateOrderTotal'");
+        return orderItemRepository.calculateTotalOrder(orderId);
     }
 
 }
