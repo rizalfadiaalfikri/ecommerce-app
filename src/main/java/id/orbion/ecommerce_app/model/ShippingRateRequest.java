@@ -1,5 +1,7 @@
 package id.orbion.ecommerce_app.model;
 
+import java.math.BigDecimal;
+
 import com.fasterxml.jackson.databind.PropertyNamingStrategies.SnakeCaseStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
@@ -19,7 +21,7 @@ public class ShippingRateRequest {
 
     private Address toAddress;
 
-    private int totalWeightInGrams;
+    private BigDecimal totalWeightInGrams;
 
     @Data
     @Builder
