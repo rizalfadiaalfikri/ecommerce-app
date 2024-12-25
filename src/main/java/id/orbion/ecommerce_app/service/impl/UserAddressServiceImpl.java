@@ -5,6 +5,7 @@ import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 
+import id.orbion.ecommerce_app.common.error.ResourceNotFoundException;
 import id.orbion.ecommerce_app.entity.UserAddress;
 import id.orbion.ecommerce_app.model.UserAddressRequest;
 import id.orbion.ecommerce_app.model.UserAddressResponse;
@@ -51,14 +52,18 @@ public class UserAddressServiceImpl implements UserAddressService {
 
     @Override
     public List<UserAddressResponse> findByUserId(Long userId) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'findByUserId'");
+        List<UserAddress> addresses = userAddressRepository.findByUserId(userId);
+        return addresses.stream()
+                .map(UserAddressResponse::fromUserAddress)
+                .toList();
     }
 
     @Override
     public UserAddressResponse findById(Long userAddressId) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'findById'");
+        return userAddressRepository.findById(userAddressId)
+                .map(UserAddressResponse::fromUserAddress)
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("No user address found for id " + userAddressId));
     }
 
     @Override
