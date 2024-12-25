@@ -2,12 +2,15 @@ package id.orbion.ecommerce_app.service.impl;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.List;
 import java.util.Random;
 
 import org.springframework.stereotype.Service;
 
 import id.orbion.ecommerce_app.common.error.ResourceNotFoundException;
 import id.orbion.ecommerce_app.entity.Order;
+import id.orbion.ecommerce_app.entity.OrderItem;
+import id.orbion.ecommerce_app.entity.Product;
 import id.orbion.ecommerce_app.model.ShippingOrderRequest;
 import id.orbion.ecommerce_app.model.ShippingOrderResponse;
 import id.orbion.ecommerce_app.model.ShippingRateRequest;
@@ -78,8 +81,17 @@ public class ShippingServiceImpl implements ShippingService {
 
     @Override
     public BigDecimal calculateTotalWeight(Long orderId) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'calculateTotalWeight'");
+        List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
+        return orderItems.stream()
+                .map(orderItem -> {
+                    Product product = productRepository.findById(orderItem.getProductId())
+                            .orElseThrow(
+                                    () -> new ResourceNotFoundException("No product found for shipping order"));
+                    BigDecimal totalWeight = product.getWeight().multiply(
+                            BigDecimal.valueOf(orderItem.getQuantity()));
+                    return totalWeight;
+                })
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
 }
