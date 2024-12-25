@@ -13,23 +13,23 @@ import id.orbion.ecommerce_app.entity.UserAddress;
 @Repository
 public interface UserAddressRepository extends JpaRepository<UserAddress, Long> {
 
-    List<UserAddress> findByUserId(Long userId);
+        List<UserAddress> findByUserId(Long userId);
 
-    Optional<UserAddress> findByUserIdAndIsDefaultTrue(Boolean isDefault);
+        Optional<UserAddress> findByUserIdAndIsDefaultTrue(Long userId);
 
-    @Modifying
-    @Query(value = """
-            UPDATE user_addresses
-            SET is_default = FALSE
-            WHERE user_id = :userId
-            """, nativeQuery = true)
-    void resetDefaultAddress(Long userId);
+        @Modifying
+        @Query(value = """
+                        UPDATE user_addresses
+                        SET is_default = FALSE
+                        WHERE user_id = :userId
+                        """, nativeQuery = true)
+        void resetDefaultAddress(Long userId);
 
-    @Modifying
-    @Query(value = """
-            UPDATE user_addresses
-            SET is_default = TRUE
-            WHERE user_address_id = :addressId
-            """, nativeQuery = true)
-    void setDefaultAddress(Long addressId);
+        @Modifying
+        @Query(value = """
+                        UPDATE user_addresses
+                        SET is_default = TRUE
+                        WHERE user_address_id = :addressId
+                        """, nativeQuery = true)
+        void setDefaultAddress(Long addressId);
 }
