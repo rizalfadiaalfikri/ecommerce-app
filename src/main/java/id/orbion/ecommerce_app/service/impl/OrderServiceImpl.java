@@ -84,20 +84,17 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public Optional<Order> findOrderById(Long orderId) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'findOrderById'");
+        return orderRepository.findById(orderId);
     }
 
     @Override
     public List<Order> findOrderByUserId(Long userId) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'findOrderByUserId'");
+        return orderRepository.findByUserId(userId);
     }
 
     @Override
-    public List<Order> findOrderByStatus(Long status) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'findOrderByStatus'");
+    public List<Order> findOrderByStatus(String status) {
+        return orderRepository.findByStatus(status);
     }
 
     @Override

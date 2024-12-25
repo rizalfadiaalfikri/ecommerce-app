@@ -14,7 +14,7 @@ public interface OrderService {
 
     List<Order> findOrderByUserId(Long userId);
 
-    List<Order> findOrderByStatus(Long status);
+    List<Order> findOrderByStatus(String status);
 
     void cancelOrder(Long orderId);
 
