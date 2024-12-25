@@ -2,9 +2,12 @@ package id.orbion.ecommerce_app.service.impl;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Random;
 
 import org.springframework.stereotype.Service;
 
+import id.orbion.ecommerce_app.common.error.ResourceNotFoundException;
+import id.orbion.ecommerce_app.entity.Order;
 import id.orbion.ecommerce_app.model.ShippingOrderRequest;
 import id.orbion.ecommerce_app.model.ShippingOrderResponse;
 import id.orbion.ecommerce_app.model.ShippingRateRequest;
@@ -13,6 +16,7 @@ import id.orbion.ecommerce_app.repository.OrderItemRepository;
 import id.orbion.ecommerce_app.repository.OrderRepository;
 import id.orbion.ecommerce_app.repository.ProductRepository;
 import id.orbion.ecommerce_app.service.ShippingService;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -44,15 +48,32 @@ public class ShippingServiceImpl implements ShippingService {
     }
 
     @Override
+    @Transactional
     public ShippingOrderResponse createShippingOrder(ShippingOrderRequest request) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'createShippingOrder'");
+        String awbNumber = generateAwbNumber(request.getOrderId());
+
+        Order order = orderRepository.findById(request.getOrderId())
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("No order found for shipping order"));
+
+        order.setStatus("SHIPPING");
+        order.setAwbNumber(awbNumber);
+
+        orderRepository.save(order);
+
+        return ShippingOrderResponse.builder()
+                .awbNumber(awbNumber)
+                .shippingFee(BigDecimal.ZERO)
+                .estimatedDeliveryTime("3 - 5 Hari kerja")
+                .build();
     }
 
     @Override
     public String generateAwbNumber(Long orderId) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'generateAwbNumber'");
+        Random random = new Random();
+        String prefix = "AWB";
+        String awbNumber = String.format("%s%011d", prefix, random.nextInt(100000000));
+        return awbNumber;
     }
 
     @Override
