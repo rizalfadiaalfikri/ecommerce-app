@@ -152,9 +152,14 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional
     public void updateOrderStatus(Long orderId, String newStatus) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'updateOrderStatus'");
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("No order found for cancel"));
+
+        order.setStatus(newStatus);
+        orderRepository.save(order);
     }
 
     @Override
