@@ -67,9 +67,35 @@ public class UserAddressServiceImpl implements UserAddressService {
     }
 
     @Override
+    @Transactional
     public UserAddressResponse update(Long addressId, UserAddressRequest request) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'update'");
+        UserAddress existingAddress = userAddressRepository.findById(addressId)
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("No user address found for id " + addressId));
+        UserAddress updatedAddress = UserAddress.builder()
+                .userAddressId(existingAddress.getUserAddressId())
+                .addressName(request.getAddressName())
+                .streetAddress(request.getStreetAddress())
+                .city(request.getCity())
+                .state(request.getState())
+                .postalCode(request.getPostalCode())
+                .country(request.getCountry())
+                .isDefault(request.isDefault())
+                .build();
+
+        if (request.isDefault()) {
+            Optional<UserAddress> existingDefault = userAddressRepository
+                    .findByUserIdAndIsDefaultTrue(existingAddress.getUserId());
+            existingDefault.ifPresent(
+                    address -> {
+                        address.setIsDefault(false);
+                        userAddressRepository.save(address);
+                    });
+        }
+
+        UserAddress savUserAddress = userAddressRepository.save(updatedAddress);
+
+        return UserAddressResponse.fromUserAddress(savUserAddress);
     }
 
     @Override
