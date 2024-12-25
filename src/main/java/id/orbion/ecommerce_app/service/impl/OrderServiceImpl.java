@@ -101,9 +101,19 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional
     public void cancelOrder(Long orderId) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'cancelOrder'");
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("No order found for cancel"));
+
+        if (!"PENDING".equals(order.getStatus())) {
+            throw new IllegalStateException("Only pending orders can be cancelled");
+        }
+
+        order.setStatus("CANCELLED");
+        orderRepository.save(order);
+
     }
 
     @Override
