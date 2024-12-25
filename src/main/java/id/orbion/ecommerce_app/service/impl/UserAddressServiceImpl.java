@@ -5,6 +5,7 @@ import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 
+import id.orbion.ecommerce_app.common.error.ForbiddenAccessException;
 import id.orbion.ecommerce_app.common.error.ResourceNotFoundException;
 import id.orbion.ecommerce_app.entity.UserAddress;
 import id.orbion.ecommerce_app.model.UserAddressRequest;
@@ -118,8 +119,25 @@ public class UserAddressServiceImpl implements UserAddressService {
 
     @Override
     public UserAddressResponse setDefaultAddress(Long userId, Long addressId) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setDefaultAddress'");
+        UserAddress existingAddress = userAddressRepository.findById(addressId)
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("No user address found for id " + addressId));
+
+        if (!existingAddress.getUserId().equals(userId)) {
+            throw new ForbiddenAccessException("Address does not belong to this user");
+        }
+
+        Optional<UserAddress> existingDefault = userAddressRepository.findByUserIdAndIsDefaultTrue(userId);
+        existingDefault.ifPresent(
+                address -> {
+                    address.setIsDefault(false);
+                    userAddressRepository.save(address);
+                });
+
+        existingAddress.setIsDefault(true);
+        userAddressRepository.save(existingAddress);
+
+        return UserAddressResponse.fromUserAddress(existingAddress);
     }
 
 }
