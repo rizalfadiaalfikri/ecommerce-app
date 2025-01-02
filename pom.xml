@@ -103,6 +103,12 @@
 			<artifactId>flyway-mysql</artifactId>
 		</dependency>
 
+		<dependency>
+			<groupId>com.xendit</groupId>
+			<artifactId>xendit-java-lib</artifactId>
+			<version>1.18.0</version>
+		</dependency>
+
 
 	</dependencies>
 

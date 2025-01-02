@@ -19,6 +19,8 @@ import id.orbion.ecommerce_app.entity.Product;
 import id.orbion.ecommerce_app.entity.UserAddress;
 import id.orbion.ecommerce_app.model.CheckoutRequest;
 import id.orbion.ecommerce_app.model.OrderItemResponse;
+import id.orbion.ecommerce_app.model.OrderResponse;
+import id.orbion.ecommerce_app.model.PaymentResponse;
 import id.orbion.ecommerce_app.model.ShippingRateRequest;
 import id.orbion.ecommerce_app.model.ShippingRateResponse;
 import id.orbion.ecommerce_app.repository.CartItemRepository;
@@ -27,6 +29,7 @@ import id.orbion.ecommerce_app.repository.OrderRepository;
 import id.orbion.ecommerce_app.repository.ProductRepository;
 import id.orbion.ecommerce_app.repository.UserAddressRepository;
 import id.orbion.ecommerce_app.service.OrderService;
+import id.orbion.ecommerce_app.service.PaymentService;
 import id.orbion.ecommerce_app.service.ShippingService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -45,10 +48,11 @@ public class OrderServiceImpl implements OrderService {
         private final UserAddressRepository userAddressRepository;
         private final ProductRepository productRepository;
         private final ShippingService shippingService;
+        private final PaymentService paymentService;
 
         @Override
         @Transactional
-        public Order checkout(CheckoutRequest checkoutRequest) {
+        public OrderResponse checkout(CheckoutRequest checkoutRequest) {
                 List<CartItem> selectedItems = cartItemRepository.findAllById(checkoutRequest.getSelectedCartItemIds());
 
                 if (selectedItems.isEmpty()) {
@@ -132,7 +136,31 @@ public class OrderServiceImpl implements OrderService {
                 savedOrder.setShippingFee(shippingFee);
                 savedOrder.setTaxFee(taxFee);
 
-                return orderRepository.save(savedOrder);
+                orderRepository.save(savedOrder);
+
+                String paymenturl;
+
+                try {
+                        PaymentResponse paymentResponse = paymentService.create(savedOrder);
+                        savedOrder.setXenditInvoiceId(paymentResponse.getXenditInvoiceId());
+                        savedOrder.setXenditPaymentStatus(paymentResponse.getXenditInvoiceStatus());
+                        paymenturl = paymentResponse.getXenditPaymentUrl();
+
+                        orderRepository.save(savedOrder);
+
+                        // interact with xendit api
+                        // generate payment url
+                } catch (Exception e) {
+                        log.error("Payment creation for order {} failed", savedOrder.getOrderId(), e);
+                        savedOrder.setStatus("FAILED");
+                        orderRepository.save(savedOrder);
+
+                        return OrderResponse.fromOrder(savedOrder);
+                }
+
+                OrderResponse orderResponse = OrderResponse.fromOrder(savedOrder);
+                orderResponse.setPaymentUrl(paymenturl);
+                return orderResponse;
         }
 
         @Override

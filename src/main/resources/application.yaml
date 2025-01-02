@@ -31,3 +31,7 @@ app:
   jwt:
     secret: c7a18d7dc1a0deecd84d61a69ba1bfd43dd1571f066b09d35fa6e90014c8c19b
     expiration: 1h
+
+xendit:
+  api-key: xnd_development_OqIhEtBhcYliDsETJLTa1GwqEHX7EjRQou0peWZ6PRgZz4XQAxI3D3Uiz6SCrH
+  public-key: xnd_public_development_7080xQyVlmB7QoHdYYUPq6padMkp3L1aVTa9uMWTtudFlkrTj0S5Q03MXT2L3OJE

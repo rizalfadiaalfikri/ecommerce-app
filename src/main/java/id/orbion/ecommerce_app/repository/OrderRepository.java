@@ -2,6 +2,7 @@ package id.orbion.ecommerce_app.repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -21,4 +22,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             AND order_date BETWEEN :startDate AND :endDate
             """, nativeQuery = true)
     List<Order> findByOrderIdAndDateRange(Long userId, LocalDateTime startDate, LocalDateTime endDate);
+
+    Optional<Order> findByXenditInvoiceId(String xenditInvoiceId);
+
 }

@@ -33,6 +33,7 @@ public class ApiSecurityConfig {
                 .authorizeHttpRequests(
                         auth -> {
                             auth.requestMatchers(
+                                    "/webhook/xendit",
                                     "/auth/**",
                                     "/v3/api-docs/**",
                                     "/swagger-ui/**",

@@ -6,9 +6,10 @@ import java.util.Optional;
 import id.orbion.ecommerce_app.entity.Order;
 import id.orbion.ecommerce_app.model.CheckoutRequest;
 import id.orbion.ecommerce_app.model.OrderItemResponse;
+import id.orbion.ecommerce_app.model.OrderResponse;
 
 public interface OrderService {
-    Order checkout(CheckoutRequest checkoutRequest);
+    OrderResponse checkout(CheckoutRequest checkoutRequest);
 
     Optional<Order> findOrderById(Long orderId);
 

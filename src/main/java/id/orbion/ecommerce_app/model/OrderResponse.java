@@ -32,6 +32,14 @@ public class OrderResponse implements Serializable {
 
     private LocalDateTime orderDate;
 
+    private String xenditInvoiceId;
+
+    private String paymentUrl;
+
+    private String xenditPaymentStatus;
+
+    private String xenditPaymentMethod;
+
     public static OrderResponse fromOrder(Order order) {
         return OrderResponse.builder()
                 .orderId(order.getOrderId())
@@ -42,6 +50,9 @@ public class OrderResponse implements Serializable {
                 .totalAmount(order.getTotalAmount())
                 .status(order.getStatus())
                 .orderDate(order.getOrderDate())
+                .xenditInvoiceId(order.getXenditInvoiceId())
+                .xenditPaymentStatus(order.getXenditPaymentStatus())
+                .xenditPaymentMethod(order.getXenditPaymentMethod())
                 .build();
     }
 
