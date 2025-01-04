@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import id.orbion.ecommerce_app.common.PageUtil;
 import id.orbion.ecommerce_app.model.ApiResponse;
 import id.orbion.ecommerce_app.model.PaginatedResponse;
 import id.orbion.ecommerce_app.model.PaginationDetails;
@@ -59,15 +60,7 @@ public class ProductController {
                         @RequestParam(name = "size", defaultValue = "10") Integer size,
                         @RequestParam(name = "sort", defaultValue = "product_id, asc") String[] sort,
                         @RequestParam(required = false) String name) {
-                List<Sort.Order> orders = new ArrayList<>();
-                if (sort[0].contains(",")) {
-                        for (String orderSort : sort) {
-                                String[] _sort = orderSort.split(",");
-                                orders.add(new Sort.Order(getSortDirection(_sort[1]), _sort[0]));
-                        }
-                } else {
-                        orders.add(new Sort.Order(getSortDirection(sort[1]), sort[0]));
-                }
+                List<Sort.Order> orders = PageUtil.parseSortOrderRequest(sort);
 
                 Pageable pageable = PageRequest.of(page, size, Sort.by(orders));
                 Page<ProductResponse> productResponses;
@@ -136,15 +129,6 @@ public class ProductController {
                                                 .status(200)
                                                 .message("Product deleted successfully")
                                                 .build());
-        }
-
-        private Sort.Direction getSortDirection(String direction) {
-                if (direction.equals("asc")) {
-                        return Sort.Direction.ASC;
-                } else if (direction.equals("desc")) {
-                        return Sort.Direction.DESC;
-                }
-                return Sort.Direction.ASC;
         }
 
 }

@@ -28,7 +28,7 @@ public class OrderResponse implements Serializable {
 
     private BigDecimal totalAmount;
 
-    private String status;
+    private OrderStatus status;
 
     private LocalDateTime orderDate;
 

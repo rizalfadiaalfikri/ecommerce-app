@@ -2,6 +2,10 @@ package id.orbion.ecommerce_app.controller;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -14,6 +18,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import id.orbion.ecommerce_app.common.PageUtil;
+import id.orbion.ecommerce_app.common.error.BadRequestException;
 import id.orbion.ecommerce_app.common.error.ForbiddenAccessException;
 import id.orbion.ecommerce_app.common.error.ResourceNotFoundException;
 import id.orbion.ecommerce_app.entity.Order;
@@ -21,6 +27,8 @@ import id.orbion.ecommerce_app.model.ApiResponse;
 import id.orbion.ecommerce_app.model.CheckoutRequest;
 import id.orbion.ecommerce_app.model.OrderItemResponse;
 import id.orbion.ecommerce_app.model.OrderResponse;
+import id.orbion.ecommerce_app.model.OrderStatus;
+import id.orbion.ecommerce_app.model.PaginatedOrderResponse;
 import id.orbion.ecommerce_app.model.UserInfo;
 import id.orbion.ecommerce_app.service.OrderService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -33,107 +41,120 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class OrderController {
 
-    private final OrderService orderService;
+        private final OrderService orderService;
 
-    @PostMapping("/checkout")
-    public ResponseEntity<ApiResponse> checkout(@Valid @RequestBody CheckoutRequest checkoutRequest) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        UserInfo userInfo = (UserInfo) authentication.getPrincipal();
+        @PostMapping("/checkout")
+        public ResponseEntity<ApiResponse> checkout(@Valid @RequestBody CheckoutRequest checkoutRequest) {
+                Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+                UserInfo userInfo = (UserInfo) authentication.getPrincipal();
 
-        checkoutRequest.setUserId(userInfo.getUser().getUserId());
-        OrderResponse orderResponse = orderService.checkout(checkoutRequest);
+                checkoutRequest.setUserId(userInfo.getUser().getUserId());
+                OrderResponse orderResponse = orderService.checkout(checkoutRequest);
 
-        return ResponseEntity.ok(
-                ApiResponse.builder()
-                        .status(200)
-                        .message("Order placed successfully")
-                        .data(orderResponse)
-                        .build());
-    }
-
-    @GetMapping("/{orderId}")
-    public ResponseEntity<ApiResponse> findOrderById(@PathVariable("orderId") Long orderId) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        UserInfo userInfo = (UserInfo) authentication.getPrincipal();
-
-        Order order = orderService.findOrderById(orderId)
-                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
-
-        if (!order.getUserId().equals(userInfo.getUser().getUserId())) {
-            throw new ForbiddenAccessException("You are not authorized to access this order");
+                return ResponseEntity.ok(
+                                ApiResponse.builder()
+                                                .status(200)
+                                                .message("Order placed successfully")
+                                                .data(orderResponse)
+                                                .build());
         }
 
-        OrderResponse orderResponse = OrderResponse.fromOrder(order);
+        @GetMapping("/{orderId}")
+        public ResponseEntity<ApiResponse> findOrderById(@PathVariable("orderId") Long orderId) {
+                Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+                UserInfo userInfo = (UserInfo) authentication.getPrincipal();
 
-        return ResponseEntity.ok(
-                ApiResponse.builder()
-                        .status(200)
-                        .message("Order found")
-                        .data(orderResponse)
-                        .build());
-    }
+                Order order = orderService.findOrderById(orderId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
 
-    @GetMapping("")
-    public ResponseEntity<ApiResponse> findOrderByUserId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        UserInfo userInfo = (UserInfo) authentication.getPrincipal();
+                if (!order.getUserId().equals(userInfo.getUser().getUserId())) {
+                        throw new ForbiddenAccessException("You are not authorized to access this order");
+                }
 
-        List<Order> orders = orderService.findOrderByUserId(userInfo.getUser().getUserId());
-        List<OrderResponse> orderResponses = orders.stream()
-                .map(OrderResponse::fromOrder)
-                .toList();
+                OrderResponse orderResponse = OrderResponse.fromOrder(order);
 
-        return ResponseEntity.ok(
-                ApiResponse.builder()
-                        .status(200)
-                        .message("Orders found")
-                        .data(orderResponses)
-                        .build());
+                return ResponseEntity.ok(
+                                ApiResponse.builder()
+                                                .status(200)
+                                                .message("Order found")
+                                                .data(orderResponse)
+                                                .build());
+        }
 
-    }
+        @GetMapping("")
+        public ResponseEntity<ApiResponse> findOrderByUserId(
+                        @RequestParam(name = "page", defaultValue = "0") Integer page,
+                        @RequestParam(name = "size", defaultValue = "10") Integer size,
+                        @RequestParam(name = "sort", defaultValue = "order_id, desc") String[] sort) {
+                Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+                UserInfo userInfo = (UserInfo) authentication.getPrincipal();
 
-    @PutMapping("/{orderId}/cancel")
-    public ResponseEntity<ApiResponse> cancelOrder(@PathVariable("orderId") Long orderId) {
-        orderService.cancelOrder(orderId);
-        return ResponseEntity.ok(
-                ApiResponse.builder()
-                        .status(200)
-                        .message("Order cancelled successfully")
-                        .build());
-    }
+                List<Sort.Order> sortOrders = PageUtil.parseSortOrderRequest(sort);
 
-    @GetMapping("/{orderId}/items")
-    public ResponseEntity<ApiResponse> findOrderItems(@PathVariable("orderId") Long orderId) {
-        List<OrderItemResponse> orders = orderService.findOrderItemsByOrderId(orderId);
+                Pageable pageable = PageRequest.of(page, size, Sort.by(sortOrders));
 
-        return ResponseEntity.ok(
-                ApiResponse.builder()
-                        .status(200)
-                        .message("Order items found")
-                        .data(orders)
-                        .build());
-    }
+                Page<OrderResponse> userOrder = orderService
+                                .findOrderByUserIdAndPageable(userInfo.getUser().getUserId(), pageable);
 
-    @PutMapping("/{orderId}/status")
-    public ResponseEntity<ApiResponse> updateOrderStatus(
-            @PathVariable("orderId") Long orderId,
-            @RequestParam String status) {
-        orderService.updateOrderStatus(orderId, status);
-        return ResponseEntity.ok(
-                ApiResponse.builder()
-                        .status(200)
-                        .message("Order status updated successfully")
-                        .build());
-    }
+                PaginatedOrderResponse paginatedOrderResponse = orderService.convertOrderPage(userOrder);
 
-    @GetMapping("/{orderId}/total")
-    public ResponseEntity<ApiResponse> calculateOrderYotal(@PathVariable Long orderId) {
-        double total = orderService.calculateOrderTotal(orderId);
-        return ResponseEntity.ok(
-                ApiResponse.builder()
-                        .status(200)
-                        .message("Order total calculated successfully")
-                        .data(total)
-                        .build());
-    }
+                return ResponseEntity.ok(
+                                ApiResponse.builder()
+                                                .status(200)
+                                                .message("Orders found")
+                                                .data(paginatedOrderResponse)
+                                                .build());
+
+        }
+
+        @PutMapping("/{orderId}/cancel")
+        public ResponseEntity<ApiResponse> cancelOrder(@PathVariable("orderId") Long orderId) {
+                orderService.cancelOrder(orderId);
+                return ResponseEntity.ok(
+                                ApiResponse.builder()
+                                                .status(200)
+                                                .message("Order cancelled successfully")
+                                                .build());
+        }
+
+        @GetMapping("/{orderId}/items")
+        public ResponseEntity<ApiResponse> findOrderItems(@PathVariable("orderId") Long orderId) {
+                List<OrderItemResponse> orders = orderService.findOrderItemsByOrderId(orderId);
+
+                return ResponseEntity.ok(
+                                ApiResponse.builder()
+                                                .status(200)
+                                                .message("Order items found")
+                                                .data(orders)
+                                                .build());
+        }
+
+        @PutMapping("/{orderId}/status")
+        public ResponseEntity<ApiResponse> updateOrderStatus(
+                        @PathVariable("orderId") Long orderId,
+                        @RequestParam String status) {
+                OrderStatus orderStatus;
+                try {
+                        orderStatus = OrderStatus.valueOf(status);
+                } catch (IllegalArgumentException e) {
+                        throw new BadRequestException("Invalid order status");
+                }
+                orderService.updateOrderStatus(orderId, orderStatus);
+                return ResponseEntity.ok(
+                                ApiResponse.builder()
+                                                .status(200)
+                                                .message("Order status updated successfully")
+                                                .build());
+        }
+
+        @GetMapping("/{orderId}/total")
+        public ResponseEntity<ApiResponse> calculateOrderYotal(@PathVariable Long orderId) {
+                double total = orderService.calculateOrderTotal(orderId);
+                return ResponseEntity.ok(
+                                ApiResponse.builder()
+                                                .status(200)
+                                                .message("Order total calculated successfully")
+                                                .data(total)
+                                                .build());
+        }
 }

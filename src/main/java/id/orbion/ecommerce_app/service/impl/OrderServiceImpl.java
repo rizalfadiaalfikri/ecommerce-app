@@ -9,8 +9,16 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import com.xendit.exception.XenditException;
+import com.xendit.model.Invoice;
+
+import id.orbion.ecommerce_app.common.OrderStateTransition;
+import id.orbion.ecommerce_app.common.error.InventoryException;
 import id.orbion.ecommerce_app.common.error.ResourceNotFoundException;
 import id.orbion.ecommerce_app.entity.CartItem;
 import id.orbion.ecommerce_app.entity.Order;
@@ -20,6 +28,8 @@ import id.orbion.ecommerce_app.entity.UserAddress;
 import id.orbion.ecommerce_app.model.CheckoutRequest;
 import id.orbion.ecommerce_app.model.OrderItemResponse;
 import id.orbion.ecommerce_app.model.OrderResponse;
+import id.orbion.ecommerce_app.model.OrderStatus;
+import id.orbion.ecommerce_app.model.PaginatedOrderResponse;
 import id.orbion.ecommerce_app.model.PaymentResponse;
 import id.orbion.ecommerce_app.model.ShippingRateRequest;
 import id.orbion.ecommerce_app.model.ShippingRateResponse;
@@ -28,6 +38,7 @@ import id.orbion.ecommerce_app.repository.OrderItemRepository;
 import id.orbion.ecommerce_app.repository.OrderRepository;
 import id.orbion.ecommerce_app.repository.ProductRepository;
 import id.orbion.ecommerce_app.repository.UserAddressRepository;
+import id.orbion.ecommerce_app.service.InventoryService;
 import id.orbion.ecommerce_app.service.OrderService;
 import id.orbion.ecommerce_app.service.PaymentService;
 import id.orbion.ecommerce_app.service.ShippingService;
@@ -49,6 +60,7 @@ public class OrderServiceImpl implements OrderService {
         private final ProductRepository productRepository;
         private final ShippingService shippingService;
         private final PaymentService paymentService;
+        private final InventoryService inventoryService;
 
         @Override
         @Transactional
@@ -64,10 +76,17 @@ public class OrderServiceImpl implements OrderService {
                                                 () -> new ResourceNotFoundException(
                                                                 "No shipping address found for checkout"));
 
+                Map<Long, Integer> productQuantities = selectedItems.stream()
+                                .collect(Collectors.toMap(CartItem::getProductId, CartItem::getQuantity));
+
+                if (!inventoryService.checkAndLockInventory(productQuantities)) {
+                        throw new InventoryException("Not enough inventory");
+                }
+
                 // request is validate
                 Order newOrder = Order.builder()
                                 .userId(checkoutRequest.getUserId())
-                                .status("PENDING")
+                                .status(OrderStatus.PENDING)
                                 .orderDate(LocalDateTime.now())
                                 .totalAmount(BigDecimal.ZERO)
                                 .taxFee(BigDecimal.ZERO)
@@ -147,12 +166,13 @@ public class OrderServiceImpl implements OrderService {
                         paymenturl = paymentResponse.getXenditPaymentUrl();
 
                         orderRepository.save(savedOrder);
+                        inventoryService.decreaseQuantity(productQuantities);
 
                         // interact with xendit api
                         // generate payment url
                 } catch (Exception e) {
                         log.error("Payment creation for order {} failed", savedOrder.getOrderId(), e);
-                        savedOrder.setStatus("FAILED");
+                        savedOrder.setStatus(OrderStatus.PAYMENT_FAILED);
                         orderRepository.save(savedOrder);
 
                         return OrderResponse.fromOrder(savedOrder);
@@ -174,7 +194,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         @Override
-        public List<Order> findOrderByStatus(String status) {
+        public List<Order> findOrderByStatus(OrderStatus status) {
                 return orderRepository.findByStatus(status);
         }
 
@@ -184,13 +204,21 @@ public class OrderServiceImpl implements OrderService {
                 Order order = orderRepository.findById(orderId)
                                 .orElseThrow(
                                                 () -> new ResourceNotFoundException("No order found for cancel"));
-
-                if (!"PENDING".equals(order.getStatus())) {
+                if (!OrderStateTransition.isValidTransition(order.getStatus(), OrderStatus.CANCELLED)) {
                         throw new IllegalStateException("Only pending orders can be cancelled");
                 }
 
-                order.setStatus("CANCELLED");
+                List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
+                Map<Long, Integer> productQuantities = orderItems.stream()
+                                .collect(Collectors.toMap(OrderItem::getProductId, OrderItem::getQuantity));
+
+                order.setStatus(OrderStatus.CANCELLED);
                 orderRepository.save(order);
+
+                if (order.getStatus().equals(OrderStatus.CANCELLED)) {
+                        cancelXenditInvoide(order);
+                        inventoryService.increaseQuantity(productQuantities);
+                }
 
         }
 
@@ -228,10 +256,22 @@ public class OrderServiceImpl implements OrderService {
 
         @Override
         @Transactional
-        public void updateOrderStatus(Long orderId, String newStatus) {
+        public void updateOrderStatus(Long orderId, OrderStatus newStatus) {
                 Order order = orderRepository.findById(orderId)
                                 .orElseThrow(
                                                 () -> new ResourceNotFoundException("No order found for cancel"));
+                if (!OrderStateTransition.isValidTransition(order.getStatus(), newStatus)) {
+                        throw new IllegalStateException("order with current status " + order.getStatus()
+                                        + " cannot be updated to " + newStatus);
+                }
+
+                if (newStatus == OrderStatus.CANCELLED) {
+                        cancelXenditInvoide(order);
+                        List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
+                        Map<Long, Integer> productQuantities = orderItems.stream()
+                                        .collect(Collectors.toMap(OrderItem::getProductId, OrderItem::getQuantity));
+                        inventoryService.increaseQuantity(productQuantities);
+                }
 
                 order.setStatus(newStatus);
                 orderRepository.save(order);
@@ -240,6 +280,49 @@ public class OrderServiceImpl implements OrderService {
         @Override
         public Double calculateOrderTotal(Long orderId) {
                 return orderItemRepository.calculateTotalOrder(orderId);
+        }
+
+        private void cancelXenditInvoide(Order order) {
+                try {
+                        Invoice invoice = Invoice.expire(order.getXenditInvoiceId());
+                        order.setXenditPaymentStatus(invoice.getStatus());
+                        orderRepository.save(order);
+                } catch (XenditException e) {
+                        log.error("Failed to cancel Xendit invoice", e);
+                        e.printStackTrace();
+                }
+        }
+
+        // run each minutes
+        @Scheduled(cron = "0 * * * * *")
+        @Transactional
+        public void cancelUnpaidOrder() {
+                LocalDateTime cancelTreshold = LocalDateTime.now().minusDays(1);
+                List<Order> unpaidOrders = orderRepository.findByStatusAndOrderDateBefore(OrderStatus.PENDING,
+                                cancelTreshold);
+
+                for (Order order : unpaidOrders) {
+                        order.setStatus(OrderStatus.CANCELLED);
+                        orderRepository.save(order);
+
+                        cancelXenditInvoide(order);
+                }
+        }
+
+        @Override
+        public Page<OrderResponse> findOrderByUserIdAndPageable(Long userId, Pageable pageable) {
+                return orderRepository.findByUserIdByPageable(userId, pageable)
+                                .map(order -> {
+                                        return OrderResponse.fromOrder(order);
+                                });
+        }
+
+        @Override
+        public PaginatedOrderResponse convertOrderPage(Page<OrderResponse> orderResponse) {
+                return PaginatedOrderResponse.builder().data(orderResponse.getContent())
+                                .pageNo(orderResponse.getNumber()).pageSize(orderResponse.getSize())
+                                .totalElement(orderResponse.getTotalElements())
+                                .totalPages(orderResponse.getTotalPages()).last(orderResponse.isLast()).build();
         }
 
 }

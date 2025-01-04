@@ -1,0 +1,26 @@
+package id.orbion.ecommerce_app.service.impl;
+
+import java.util.function.Supplier;
+
+import org.springframework.stereotype.Service;
+
+import id.orbion.ecommerce_app.service.RateLimitingService;
+import io.github.resilience4j.ratelimiter.RateLimiter;
+import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class RateLimitingServiceImpl implements RateLimitingService {
+
+    private final RateLimiterRegistry rateLimiterRegistry;
+
+    @Override
+    public <T> T executeWithRateLimit(String key, Supplier<T> operation) {
+        RateLimiter rateLimiter = rateLimiterRegistry.rateLimiter(key);
+        return RateLimiter.decorateSupplier(rateLimiter, operation).get();
+    }
+
+}

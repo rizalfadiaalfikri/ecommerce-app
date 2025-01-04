@@ -12,6 +12,7 @@ import com.xendit.model.Invoice;
 import id.orbion.ecommerce_app.common.error.ResourceNotFoundException;
 import id.orbion.ecommerce_app.entity.Order;
 import id.orbion.ecommerce_app.entity.User;
+import id.orbion.ecommerce_app.model.OrderStatus;
 import id.orbion.ecommerce_app.model.PaymentNotification;
 import id.orbion.ecommerce_app.model.PaymentResponse;
 import id.orbion.ecommerce_app.repository.OrderRepository;
@@ -94,16 +95,16 @@ public class PaymentServiceImpl implements PaymentService {
 
         switch (status) {
             case "PAID":
-                order.setStatus("PAID");
+                order.setStatus(OrderStatus.PAID);
                 break;
             case "PENDING":
-                order.setStatus("PENDING");
+                order.setStatus(OrderStatus.PENDING);
                 break;
             case "EXPIRED":
-                order.setStatus("CANCELLED");
+                order.setStatus(OrderStatus.CANCELLED);
                 break;
             case "FAILED":
-                order.setStatus("FAILED");
+                order.setStatus(OrderStatus.PAYMENT_FAILED);
                 break;
             default:
                 break;

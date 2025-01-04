@@ -7,10 +7,12 @@ import java.util.Random;
 
 import org.springframework.stereotype.Service;
 
+import id.orbion.ecommerce_app.common.OrderStateTransition;
 import id.orbion.ecommerce_app.common.error.ResourceNotFoundException;
 import id.orbion.ecommerce_app.entity.Order;
 import id.orbion.ecommerce_app.entity.OrderItem;
 import id.orbion.ecommerce_app.entity.Product;
+import id.orbion.ecommerce_app.model.OrderStatus;
 import id.orbion.ecommerce_app.model.ShippingOrderRequest;
 import id.orbion.ecommerce_app.model.ShippingOrderResponse;
 import id.orbion.ecommerce_app.model.ShippingRateRequest;
@@ -28,70 +30,78 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ShippingServiceImpl implements ShippingService {
 
-    private static final BigDecimal BASE_RATE = BigDecimal.valueOf(10000);
-    private static final BigDecimal RATE_PER_KG = BigDecimal.valueOf(2500);
+        private static final BigDecimal BASE_RATE = BigDecimal.valueOf(10000);
+        private static final BigDecimal RATE_PER_KG = BigDecimal.valueOf(2500);
 
-    private final OrderRepository orderRepository;
-    private final OrderItemRepository orderItemRepository;
-    private final ProductRepository productRepository;
+        private final OrderRepository orderRepository;
+        private final OrderItemRepository orderItemRepository;
+        private final ProductRepository productRepository;
 
-    @Override
-    public ShippingRateResponse calculateShippingRate(ShippingRateRequest request) {
-        // shipping_fee BASE_RATE + (weight * rate per kg)
+        @Override
+        public ShippingRateResponse calculateShippingRate(ShippingRateRequest request) {
+                // shipping_fee BASE_RATE + (weight * rate per kg)
 
-        BigDecimal shippingFee = BASE_RATE
-                .add(request.getTotalWeightInGrams().divide(BigDecimal.valueOf(1000).multiply(RATE_PER_KG)))
-                .setScale(2, RoundingMode.HALF_UP);
-        String estimatedDeliveyFee = "3 - 5 Hari kerja";
+                BigDecimal shippingFee = BASE_RATE
+                                .add(request.getTotalWeightInGrams()
+                                                .divide(BigDecimal.valueOf(1000).multiply(RATE_PER_KG)))
+                                .setScale(2, RoundingMode.HALF_UP);
+                String estimatedDeliveyFee = "3 - 5 Hari kerja";
 
-        return ShippingRateResponse.builder()
-                .shippingFee(shippingFee)
-                .estimatedDeliveryTime(estimatedDeliveyFee)
-                .build();
-    }
+                return ShippingRateResponse.builder()
+                                .shippingFee(shippingFee)
+                                .estimatedDeliveryTime(estimatedDeliveyFee)
+                                .build();
+        }
 
-    @Override
-    @Transactional
-    public ShippingOrderResponse createShippingOrder(ShippingOrderRequest request) {
-        String awbNumber = generateAwbNumber(request.getOrderId());
+        @Override
+        @Transactional
+        public ShippingOrderResponse createShippingOrder(ShippingOrderRequest request) {
+                String awbNumber = generateAwbNumber(request.getOrderId());
 
-        Order order = orderRepository.findById(request.getOrderId())
-                .orElseThrow(
-                        () -> new ResourceNotFoundException("No order found for shipping order"));
+                Order order = orderRepository.findById(request.getOrderId())
+                                .orElseThrow(
+                                                () -> new ResourceNotFoundException(
+                                                                "No order found for shipping order"));
 
-        order.setStatus("SHIPPING");
-        order.setAwbNumber(awbNumber);
+                if (!OrderStateTransition.isValidTransition(order.getStatus(), OrderStatus.SHIPPED)) {
+                        throw new IllegalStateException("Order with current status " + order.getStatus()
+                                        + " cannot be shipped");
+                }
 
-        orderRepository.save(order);
+                order.setStatus(OrderStatus.SHIPPED);
+                order.setAwbNumber(awbNumber);
 
-        return ShippingOrderResponse.builder()
-                .awbNumber(awbNumber)
-                .shippingFee(BigDecimal.ZERO)
-                .estimatedDeliveryTime("3 - 5 Hari kerja")
-                .build();
-    }
+                orderRepository.save(order);
 
-    @Override
-    public String generateAwbNumber(Long orderId) {
-        Random random = new Random();
-        String prefix = "AWB";
-        String awbNumber = String.format("%s%011d", prefix, random.nextInt(100000000));
-        return awbNumber;
-    }
+                return ShippingOrderResponse.builder()
+                                .awbNumber(awbNumber)
+                                .shippingFee(BigDecimal.ZERO)
+                                .estimatedDeliveryTime("3 - 5 Hari kerja")
+                                .build();
+        }
 
-    @Override
-    public BigDecimal calculateTotalWeight(Long orderId) {
-        List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
-        return orderItems.stream()
-                .map(orderItem -> {
-                    Product product = productRepository.findById(orderItem.getProductId())
-                            .orElseThrow(
-                                    () -> new ResourceNotFoundException("No product found for shipping order"));
-                    BigDecimal totalWeight = product.getWeight().multiply(
-                            BigDecimal.valueOf(orderItem.getQuantity()));
-                    return totalWeight;
-                })
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
+        @Override
+        public String generateAwbNumber(Long orderId) {
+                Random random = new Random();
+                String prefix = "AWB";
+                String awbNumber = String.format("%s%011d", prefix, random.nextInt(100000000));
+                return awbNumber;
+        }
+
+        @Override
+        public BigDecimal calculateTotalWeight(Long orderId) {
+                List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
+                return orderItems.stream()
+                                .map(orderItem -> {
+                                        Product product = productRepository.findById(orderItem.getProductId())
+                                                        .orElseThrow(
+                                                                        () -> new ResourceNotFoundException(
+                                                                                        "No product found for shipping order"));
+                                        BigDecimal totalWeight = product.getWeight().multiply(
+                                                        BigDecimal.valueOf(orderItem.getQuantity()));
+                                        return totalWeight;
+                                })
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
 
 }
