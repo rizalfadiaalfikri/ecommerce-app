@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import id.orbion.ecommerce_app.common.error.BadRequestException;
 import id.orbion.ecommerce_app.common.error.ForbiddenAccessException;
+import id.orbion.ecommerce_app.common.error.InventoryException;
 import id.orbion.ecommerce_app.common.error.ResourceNotFoundException;
 import id.orbion.ecommerce_app.entity.Cart;
 import id.orbion.ecommerce_app.entity.CartItem;
@@ -43,11 +44,15 @@ public class CartServiceImpl implements CartService {
                     return cartRepository.save(newCart);
                 });
 
-        Product product = productRepository.findById(productId)
+        Product product = productRepository.findByIdWithPessimistickLock(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product with id " + productId + " not found"));
 
         if (product.getUserId().equals(userId)) {
             throw new BadRequestException("Cannot add your own product to cart");
+        }
+
+        if (product.getStockQuantity() < quantity) {
+            throw new InventoryException("Not enough inventory");
         }
 
         Optional<CartItem> existingItemOpt = cartItemRepository.findByCartIdAndProductId(cart.getCartId(), productId);

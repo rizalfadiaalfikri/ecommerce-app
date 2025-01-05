@@ -6,8 +6,11 @@ import java.time.LocalDateTime;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import id.orbion.ecommerce_app.model.OrderStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -46,10 +49,23 @@ public class Order {
     private BigDecimal totalAmount;
 
     @Column(name = "status", nullable = false)
-    private String status;
+    @Enumerated(EnumType.STRING)
+    private OrderStatus status;
 
     @Column(name = "order_date", nullable = false)
     private LocalDateTime orderDate;
+
+    @Column(name = "awb_number")
+    private String awbNumber;
+
+    @Column(name = "xendit_invoice_id")
+    private String xenditInvoiceId;
+
+    @Column(name = "xendit_payment_method")
+    private String xenditPaymentMethod;
+
+    @Column(name = "xendit_payment_status")
+    private String xenditPaymentStatus;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)

@@ -18,6 +18,7 @@ import id.orbion.ecommerce_app.model.UserUpdateRequest;
 import id.orbion.ecommerce_app.repository.RoleRepository;
 import id.orbion.ecommerce_app.repository.UserRepository;
 import id.orbion.ecommerce_app.repository.UserRoleRepository;
+import id.orbion.ecommerce_app.service.CacheService;
 import id.orbion.ecommerce_app.service.UserService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,10 @@ public class UserServiceImpl implements UserService {
     private final RoleRepository roleRepository;
     private final UserRoleRepository userRoleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final CacheService cacheService;
+
+    private final String USER_CACHE_KEY = "cache:user:";
+    private final String USER_ROLE_CACHE_KEY = "cache:user:roles:";
 
     @Override
     @Transactional
@@ -123,7 +128,15 @@ public class UserServiceImpl implements UserService {
                 user.setEmail(request.getEmail());
             }
 
+            String userCacheKey = USER_CACHE_KEY + user.getUsername();
+            String roleCacheKey = USER_ROLE_CACHE_KEY + user.getUsername();
+
             userRepository.save(user);
+
+            // delete cache
+            cacheService.evict(roleCacheKey);
+            cacheService.evict(userCacheKey);
+
             List<Role> roles = roleRepository.findByUserId(user.getUserId());
             return UserResponse.fromUserAndRoles(user, roles);
 

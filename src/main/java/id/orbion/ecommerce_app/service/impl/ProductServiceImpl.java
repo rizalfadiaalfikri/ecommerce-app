@@ -1,6 +1,7 @@
 package id.orbion.ecommerce_app.service.impl;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,7 +19,9 @@ import id.orbion.ecommerce_app.model.ProductResponse;
 import id.orbion.ecommerce_app.repository.CategoryRepository;
 import id.orbion.ecommerce_app.repository.ProductCategoryRepository;
 import id.orbion.ecommerce_app.repository.ProductRepository;
+import id.orbion.ecommerce_app.service.CacheService;
 import id.orbion.ecommerce_app.service.ProductService;
+import id.orbion.ecommerce_app.service.RateLimitingService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
@@ -29,6 +32,10 @@ public class ProductServiceImpl implements ProductService {
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
     private final ProductCategoryRepository productCategoryRepository;
+    private final RateLimitingService rateLimitingService;
+
+    private final String PRODUCT_CACHE_KEY = "products:";
+    private final CacheService cacheService;
 
     @Override
     public List<ProductResponse> findAll() {
@@ -53,6 +60,15 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public ProductResponse findById(Long productId) {
+
+        // check product in cache
+        String cacheKey = PRODUCT_CACHE_KEY + productId;
+        Optional<ProductResponse> cachedProduct = cacheService.get(cacheKey, ProductResponse.class);
+
+        if (cachedProduct.isPresent()) {
+            return cachedProduct.get();
+        }
+
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> {
                     return new ResourceNotFoundException("Product not found for id " + productId);
@@ -69,7 +85,10 @@ public class ProductServiceImpl implements ProductService {
                     return CategoryResponse.fromCategory(category);
                 }).toList();
 
-        return ProductResponse.fromProductCategories(product, categoryResponsesList);
+        ProductResponse productResponse = ProductResponse.fromProductCategories(product, categoryResponsesList);
+        // save product in cache
+        cacheService.put(cacheKey, productResponse);
+        return productResponse;
     }
 
     @Override
@@ -107,7 +126,13 @@ public class ProductServiceImpl implements ProductService {
                         return CategoryResponse.fromCategory(category);
                     }).toList();
 
-            return ProductResponse.fromProductCategories(savedProduct, categoryResponsesList);
+            // save product in cache
+            String cacheKey = PRODUCT_CACHE_KEY + savedProduct.getProductId();
+            ProductResponse productResponse = ProductResponse.fromProductCategories(savedProduct,
+                    categoryResponsesList);
+            cacheService.put(cacheKey, productResponse);
+
+            return productResponse;
         } catch (Exception e) {
             throw new BadRequestException(e.getMessage());
         }
@@ -147,6 +172,10 @@ public class ProductServiceImpl implements ProductService {
 
             productCategoryRepository.saveAll(newProductCategories);
 
+            // delete cache
+            String cacheKey = PRODUCT_CACHE_KEY + id;
+            cacheService.evict(cacheKey);
+
             return ProductResponse.fromProductCategories(existingProduct, categories.stream()
                     .map(category -> {
                         return CategoryResponse.fromCategory(category);
@@ -183,21 +212,23 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public Page<ProductResponse> findByPage(Pageable pageable) {
-        return productRepository.findByPageable(pageable).map(product -> {
-            List<ProductCategory> productCategories = productCategoryRepository
-                    .findCategoriesByProductId(product.getProductId());
-            List<CategoryResponse> categoryResponsesList = productCategories.stream()
-                    .map(productCategory -> {
-                        Category category = categoryRepository.findById(productCategory.getId().getCategoryId())
-                                .orElseThrow(() -> {
-                                    return new ResourceNotFoundException(
-                                            "Category not found for id "
-                                                    + productCategory.getId().getCategoryId());
-                                });
-                        return CategoryResponse.fromCategory(category);
-                    }).toList();
+        return rateLimitingService.executeWithRateLimit("product_listing", () -> {
+            return productRepository.findByPageable(pageable).map(product -> {
+                List<ProductCategory> productCategories = productCategoryRepository
+                        .findCategoriesByProductId(product.getProductId());
+                List<CategoryResponse> categoryResponsesList = productCategories.stream()
+                        .map(productCategory -> {
+                            Category category = categoryRepository.findById(productCategory.getId().getCategoryId())
+                                    .orElseThrow(() -> {
+                                        return new ResourceNotFoundException(
+                                                "Category not found for id "
+                                                        + productCategory.getId().getCategoryId());
+                                    });
+                            return CategoryResponse.fromCategory(category);
+                        }).toList();
 
-            return ProductResponse.fromProductCategories(product, categoryResponsesList);
+                return ProductResponse.fromProductCategories(product, categoryResponsesList);
+            });
         });
     }
 
